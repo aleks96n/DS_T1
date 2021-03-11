@@ -1,28 +1,144 @@
 import sys
 
-def list():
-	#list the nodes in the ring
-	return
-def lookup():
-	#lookup for a node containing a particular key. read document for more, got no idea
-	return
+class Node:
+	def __init__(self, id):
+		self.id = id
+		self.shortcuts = []
+		self.succ_ = None
+		self.nextSucc_ = None
+		self.values = []
 
-def join():
-	#new node to join the ring
-	return
+	def addShortcut(self, node):
+		self.shortcuts.append(node)
+	def appointSucc(self, node):
+		self.succ_ = node
+	def appointNextSucc(self, node):
+		self.nextSucc_ = node
+	def updateValues(self, values_):
+		self.values.extend(values_)
 
-def leave():
-	#remove node from ring
-	return
 
-def shortcut():
-	#adds a shortcut from one node to another
-	return
+# map of nodes
+class DHT:
+	def __init__(self, nodeList, shortCut_, upper, lower):
+		self.map = {}
+		self.upper = upper
+		self.lower = lower
+		self.buildRing(sorted(nodeList))
+		self.buildShortcut(shortCut_)
+		
+
+	def buildRing(self, nodeList):
+
+		#should be somewhere else, like the rest of this code
+		for node in nodeList:
+			if(node > self.upper or node < self.lower):
+				nodeList.remove(node)
+
+		nodeList_ = nodeList*2
+		nodes = [Node(i) for i in nodeList]
+		helper = nodes*2
+		for i in range(len(nodes)):
+			nodes[i].appointSucc(helper[i+1])
+			helper[i+1].updateValues(self.generateValues(nodeList_[i], nodeList_[i+1]))
+			nodes[i].appointNextSucc(helper[i+2])
+			self.map[nodeList[i]] = nodes[i]
+			
+
+	def generateValues(self, start, end):
+		values = []
+		#rint(f"start: {start}, end: {end}")
+		if(start > end):
+			values.extend([i for i in range(start+1, self.upper+1)])
+			values.extend([i for i in range(self.lower, end)])
+		else:
+			values.extend([i for i in range(start+1, end+1)])
+		#rint(values)
+		return values
+
+	def buildShortcut(self, shortCuts):
+		helper = {}
+		for elem in shortCuts:
+			a = elem.split(":")
+			key = int(a[0])
+			value = int(a[1])
+			if(key in helper):
+				helper[key].append(value)
+			else:
+				helper[key] = [value]
+		for key in helper:
+			for values in helper[key]:
+				self.map[key].addShortcut(self.map[values])
+
+	def list(self):
+		for key in sorted(self.map.keys()):
+			node_ = self.map[key]
+			shortcuts_ = node_.shortcuts
+			suc = node_.succ_
+			nsucc = node_.nextSucc_
+			print(f"{node_.id}:", end="")
+			for s in shortcuts_:
+				print(f"{s.id},",end="")
+
+			print(f" S-{suc.id}, NS-{nsucc.id}")
+
+	#omega bad, a is a list of possible shortcuts, b is comparison for successor
+	def distance(self, a, look_key):
+		best_val = a.succ_
+		for s in a.shortcuts:
+			if(s.id > a.succ_.id and s.id <= look_key):
+				best_val = s
+		return best_val
+
+	def lookup(self, start, end):
+		#lookup for a node containing a particular key. read document for more, got no idea
+		weight = 0
+		if(start == end):
+			print(f"Result: Data stored in node {start} - {weight} requests sent")
+		else:
+			#naive without shortcuts
+			current = self.map[start]
+			print(current.id)
+			while(end not in current.values):
+				current = self.distance(current, end)
+				print(current.id)
+				weight += 1
+			print(f"Result: Data stored in node {current.id} - {weight} requests sent")
+
+	#again, very naive
+	def join(self, key):
+		#new node to join the ring
+		self.map[key] = Node(key)
+		helper = sorted(self.map.keys())*2
+		print(helper)
+		index = 0
+		for key in sorted(self.map.keys()):
+			self.map[key].appointSucc(self.map[helper[index+1]])
+			self.map[key].appointNextSucc(self.map[helper[index+2]])
+			index += 1
+
+	#naive omega+
+	def leave(self, key):
+		#remove node from ring
+		if(len(self.map) <= 1):
+			print("c")
+		else:
+			self.map.pop(key)
+			helper = sorted(self.map.keys())*2
+			index = 0
+			for key in sorted(self.map.keys()):
+				self.map[key].appointSucc(self.map[helper[index+1]])
+				self.map[key].appointNextSucc(self.map[helper[index+2]])
+				index += 1
+
+	def shortcut(self, from_, to):
+		#adds a shortcut from one node to another
+		self.map[from_].addShortcut(self.map[to])
 
 def main():
 	upper, lower = None, None
 	node_list = []
-	shortCut_string = None
+	shortCut_ = None
 	nodeCheck, keyCheck, shortcutCheck = False, False, False
 
 	#very naive, but works
@@ -46,13 +162,25 @@ def main():
 				upper, lower = int(helper[1]), int(helper[0])
 				keyCheck = False
 			elif(shortcutCheck):
-				shortCut_string = line
+				shortCut_ = line.split(",")
 				shortcutCheck = False
-	print(upper)
-	print(lower)
-	print(node_list)
-	print(shortCut_string)
-
+	#print(upper)
+	#print(lower)
+	#print(node_list)
+	#print(shortCut_string)
+	dht = DHT(node_list,shortCut_, upper, lower)
+	dht.list()
+	print("")
+	dht.lookup(17, 69)
+	print("")
+	dht.join(7)
+	dht.list()
+	print("")
+	dht.leave(5)
+	dht.list()
+	print("")
+	dht.shortcut(7, 22)
+	dht.list()
 	
 
 if __name__ == "__main__":
