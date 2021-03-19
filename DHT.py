@@ -31,6 +31,7 @@ class DHT:
 	def buildRing(self, nodeList):
 
 		#should be somewhere else, like the rest of this code
+		#TODO:should raise exception instead of ignoring
 		for node in nodeList:
 			if(node > self.upper or node < self.lower):
 				nodeList.remove(node)
