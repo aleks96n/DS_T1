@@ -9,7 +9,6 @@ Server = socket.socket()
 HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 ThreadCount = 0
-
 Server.bind((HOST,PORT))
 print("Waiting...")
 #does what?
@@ -53,16 +52,42 @@ def threaded_client(connection):
     while True:
         data = connection.recv(2048)
         data = data.decode('utf-8')
-        if(data.startswith("import")):
-            dht = readFile(data.split(" ")[1])
-            dht.list()
-            reply = 'Server Says: I read file xD'
-        elif(data.startswith("join")):
-            dht.join(int(data.split(" ")[1]))
-        elif(data.startswith("list")):
-            dht.list()
-        if not data:
-            break
+        reply = None
+        try:
+            if(data.startswith("import")):
+                dht = readFile(data.split(" ")[1])
+                dht.list()
+                reply = 'Server Says: File read'
+            elif(data.startswith("join")):
+                dht.join(int(data.split(" ")[1]))
+                reply = 'Server Says: Joined node'
+            elif(data.startswith("list")):
+                dht.list()
+                print(" ")
+            elif(data.startswith("leave")):
+                dht.leave(int(data.split(" ")[1]))
+                reply = 'Server Says: Node left'
+            elif(data.startswith("shortcut")):
+                helper = data.split(" ")
+                from_ = int(helper[1])
+                to = int(helper[2])
+                dht.shortcut(from_, to)
+                reply = 'Server Says: Shortcut addded, use List'
+            elif(data.startswith("lookup")):
+                helper = data.split(" ")
+                from_ = int(helper[1])
+                to = int(helper[2])
+                dht.lookup(from_, to)
+                reply = 'Server Says: Lookup performed'
+            elif(data.startswith("exit")):
+                reply = 'Exiting...'
+                break
+            if not data:
+                break
+        except:
+            print("Something went horribly wrong")
+        if reply == None:
+            reply = 'Unknown command'
         connection.sendall(str.encode(reply))
     connection.close()
 
@@ -84,6 +109,5 @@ while True:
     Client, address = Server.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     start_new_thread(threaded_client, (Client, ))
-    ThreadCount+=1
     print("Thread Number: " + str(ThreadCount))
 Server.close(0)

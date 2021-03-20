@@ -24,6 +24,7 @@ class DHT:
 		self.map = {}
 		self.upper = upper
 		self.lower = lower
+		self.fileRead = False
 		self.buildRing(sorted(nodeList))
 		self.buildShortcut(shortCut_)
 		
@@ -70,18 +71,22 @@ class DHT:
 		for key in helper:
 			for values in helper[key]:
 				self.map[key].addShortcut(self.map[values])
+		self.fileRead = True
 
 	def list(self):
-		for key in sorted(self.map.keys()):
-			node_ = self.map[key]
-			shortcuts_ = node_.shortcuts
-			suc = node_.succ_
-			nsucc = node_.nextSucc_
-			print(f"{node_.id}:", end="")
-			for s in shortcuts_:
-				print(f"{s.id},",end="")
+		if(len(self.map) < 0):
+			print("Nothing to list")
+		else:
+			for key in sorted(self.map.keys()):
+				node_ = self.map[key]
+				shortcuts_ = node_.shortcuts
+				suc = node_.succ_
+				nsucc = node_.nextSucc_
+				print(f"{node_.id}:", end="")
+				for s in shortcuts_:
+					print(f"{s.id},",end="")
 
-			print(f" S-{suc.id}, NS-{nsucc.id}")
+				print(f" S-{suc.id}, NS-{nsucc.id}")
 
 	#omega bad, a is a list of possible shortcuts, b is comparison for successor
 	def distance(self, a, look_key):
@@ -99,42 +104,50 @@ class DHT:
 		else:
 			#naive without shortcuts
 			current = self.map[start]
-			print(current.id)
 			while(end not in current.values):
 				current = self.distance(current, end)
-				print(current.id)
 				weight += 1
 			print(f"Result: Data stored in node {current.id} - {weight} requests sent")
 
 	#again, very naive
 	def join(self, key):
 		#new node to join the ring
-		self.map[key] = Node(key)
-		helper = sorted(self.map.keys())*2
-		print(helper)
-		index = 0
-		for key in sorted(self.map.keys()):
-			self.map[key].appointSucc(self.map[helper[index+1]])
-			self.map[key].appointNextSucc(self.map[helper[index+2]])
-			index += 1
+		if(key < self.lower or key > self.upper):
+			print(f"Node index too large or too low. Bounds are: {self.lower} to {self.upper}")
+		else:
+			if(key not in self.map):
+				self.map[key] = Node(key)
+				helper = sorted(self.map.keys())*2
+				index = 0
+				for key in sorted(self.map.keys()):
+					self.map[key].appointSucc(self.map[helper[index+1]])
+					self.map[key].appointNextSucc(self.map[helper[index+2]])
+					index += 1
+			else:
+				print("Node already in DHT")
 
 	#naive omega+
 	def leave(self, key):
 		#remove node from ring
 		if(len(self.map) <= 1):
-			print("c")
+			print("Cannot remove, list length at 1 or less")
 		else:
-			self.map.pop(key)
+			node_ = self.map.pop(key)
 			helper = sorted(self.map.keys())*2
 			index = 0
-			for key in sorted(self.map.keys()):
-				self.map[key].appointSucc(self.map[helper[index+1]])
-				self.map[key].appointNextSucc(self.map[helper[index+2]])
+			for key_ in sorted(self.map.keys()):
+				if(node_ in self.map[key_].shortcuts):
+					self.map[key_].shortcuts.remove(node_)
+				self.map[key_].appointSucc(self.map[helper[index+1]])
+				self.map[key_].appointNextSucc(self.map[helper[index+2]])
 				index += 1
 
 	def shortcut(self, from_, to):
-		#adds a shortcut from one node to another
-		self.map[from_].addShortcut(self.map[to])
+		if(from_ not in self.map or to not in self.map):
+			print("No such node")
+		else:
+			#adds a shortcut from one node to another
+			self.map[from_].addShortcut(self.map[to])
 
 def main():
 	upper, lower = None, None
